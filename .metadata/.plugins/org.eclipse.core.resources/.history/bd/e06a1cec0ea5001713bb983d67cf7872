@@ -1,0 +1,7 @@
+/cmd/
+/lib/
+/makefile
+/objects.mk
+/source/
+/sources.mk
+/subdir_rules.mk

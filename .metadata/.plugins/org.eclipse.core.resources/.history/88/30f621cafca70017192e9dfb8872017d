@@ -1,0 +1,367 @@
+/*
+ * main.c
+ */
+
+#include	"main.h"
+
+#define     FIR_NUM_OF_COEFF                129
+#define     NUMBER_OF_PERIODS_IN_WINDOW     4
+
+#define     SIGNAL_LENGTH                   NUMBER_OF_PERIODS_IN_WINDOW*FIR_NUM_OF_COEFF
+
+// globalne spremenljivke
+
+
+// spremenljivke za potrebe merjenja èasa
+float           angle_from_0_to_1 = 0.0;
+float           ref_kot = 0.0;
+float           kot_50Hz = 0.0;
+int             num_of_s_passed = 0;
+int             num_of_min_passed = 0;
+
+// indeksi
+int             i = 0;
+/*
+// spremenljivke za DCT reg.
+float           cas_izvajanja_DCT_reg = 0.0;
+DCT_REG_float   DCT_test = DCT_REG_FLOAT_DEFAULTS;
+*/
+// zaèasne spremenljivke
+float           temp1 = 0.0;
+float           temp2 = 0.0;
+float           temp3 = 0.0;
+
+
+
+
+float           firFP_razlika[FIR_NUM_OF_COEFF];
+
+
+
+
+
+/*
+ * Calculating a digital frequency
+ * Let sampling frequency = 200MHz
+ * primary signal @ 10KHz and a secondary signal @ 40KHz
+ * Therefore k1 = FREQ1/SAMPLING_FREQ = 10K/200M = 5e-5
+ *           k2 = FREQ2/SAMPLING_FREQ = 40K/200M = 20e-5
+ * composite signal = 1/2(sin(2*pi*i*k1) + sin(2*pi*i*k2))
+ *                  = 1/2(sin(0.001256637061436 * i) + sin(0.005026548245744*i))
+ */
+
+// spremenljivke za FIR filter iz FPU modula
+float   RadStep = 0.062831853071f;
+float   RadStep2 = 2.073451151f;
+float   Rad = 0.0f;
+float   Rad2 = 0.0f;
+float   xn = 0.0;               // zadnji vzorec vhodnega signala
+float   yn = 0.0;               // zadnji vzorec izhodnega signala
+float   sigIn[SIGNAL_LENGTH];   // buffer vhodnega signala
+float   sigOut[SIGNAL_LENGTH];  // buffer izhodnega signala
+
+// Create an Instance of FIRFILT_GEN module and place the object in "firfilt" section
+#pragma DATA_SECTION(firFP, "firfilt")
+FIR_FP  firFP = FIR_FP_DEFAULTS;
+// Define the Delay buffer for the 50th order filterfilter and place it in "firldb" section
+#pragma DATA_SECTION(dbuffer, "firldb")
+#pragma DATA_ALIGN (dbuffer,0x2)
+float dbuffer[FIR_NUM_OF_COEFF];
+// Define Constant Co-efficient Array  and place the .constant section in ROM memory
+#pragma DATA_SECTION(coeff, "coefffilt");
+#pragma DATA_ALIGN (coeff,0x400)
+// DCT filter
+float const coeff[FIR_NUM_OF_COEFF] =                                                                  \
+//        { \
+         0.0156250000000, 0.0156061790032, 0.0155497613543, 0.0154558829682, 0.0153247700063, 0.0151567383312, \
+         0.0149521927458, 0.0147116260185, 0.0144356176955, 0.0141248327051, 0.0137800197554, 0.0134020095313, \
+         0.0129917126922, 0.0125501176794, 0.0120782883338, 0.0115773613337, 0.0110485434560, 0.0104931086695, \
+         0.0099123950651, 0.0093078016327, 0.0086807848909, 0.0080328553780, 0.0073655740129, 0.0066805483348, \
+         0.0059794286307, 0.0052639039593, 0.0045356980821, 0.0037965653110, 0.0030482862815, 0.0022926636634, \
+         0.0015315178176, 0.0007666824114, 0.0000000000000,-0.0007666824114,-0.0015315178176,-0.0022926636634, \
+        -0.0030482862815,-0.0037965653110,-0.0045356980821,-0.0052639039593,-0.0059794286307,-0.0066805483348, \
+        -0.0073655740129,-0.0080328553780,-0.0086807848909,-0.0093078016327,-0.0099123950651,-0.0104931086695, \
+        -0.0110485434560,-0.0115773613337,-0.0120782883338,-0.0125501176794,-0.0129917126922,-0.0134020095313, \
+        -0.0137800197554,-0.0141248327051,-0.0144356176955,-0.0147116260185,-0.0149521927458,-0.0151567383312, \
+        -0.0153247700063,-0.0154558829682,-0.0155497613543,-0.0156061790032,-0.0156250000000,-0.0156061790032, \
+        -0.0155497613543,-0.0154558829682,-0.0153247700063,-0.0151567383312,-0.0149521927458,-0.0147116260185, \
+        -0.0144356176955,-0.0141248327051,-0.0137800197554,-0.0134020095313,-0.0129917126922,-0.0125501176794, \
+        -0.0120782883338,-0.0115773613337,-0.0110485434560,-0.0104931086695,-0.0099123950651,-0.0093078016327, \
+        -0.0086807848909,-0.0080328553780,-0.0073655740129,-0.0066805483348,-0.0059794286307,-0.0052639039593, \
+        -0.0045356980821,-0.0037965653110,-0.0030482862815,-0.0022926636634,-0.0015315178176,-0.0007666824114, \
+        -0.0000000000000, 0.0007666824114, 0.0015315178176, 0.0022926636634, 0.0030482862815, 0.0037965653110, \
+         0.0045356980821, 0.0052639039593, 0.0059794286307, 0.0066805483348, 0.0073655740129, 0.0080328553780, \
+         0.0086807848909, 0.0093078016327, 0.0099123950651, 0.0104931086695, 0.0110485434560, 0.0115773613337, \
+         0.0120782883338, 0.0125501176794, 0.0129917126922, 0.0134020095313, 0.0137800197554, 0.0141248327051, \
+         0.0144356176955, 0.0147116260185, 0.0149521927458, 0.0151567383312, 0.0153247700063, 0.0154558829682, \
+         0.0155497613543, 0.0156061790032 \
+        }; // DCT filter
+float const coeff[FIR_NUM_OF_COEFF] =                                                                          \
+        { \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, 0.0000000000000, \
+         0.0000000000000, 0.0000000000000, 1.0000000000000 \
+        }; // 129 koeficientov
+
+// diracov impulz - 10 koeficientov
+//float const coeff[FIR_NUM_OF_COEFF]=                                                             \
+        {1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
+// diracov impulz ZAMENJAN VRSTNI RED - 10 koeficientov
+//float const coeff[FIR_NUM_OF_COEFF]=                                                             \
+        {0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0};
+// DCT filter ZAMENJAN VRSTNI RED - 64 koeficientov
+//float const coeff[FIR_NUM_OF_COEFF] =                                                                          \
+        { \
+         0.0312500000000, 0.0310995227085, 0.0306495400126, 0.0299043854916, 0.0288712353910, 0.0275600395109, \
+         0.0259834253845, 0.0241565766676, 0.0220970869121, 0.0198247901301, 0.0173615697819, 0.0147311480258, \
+         0.0119588572614, 0.0090713961642, 0.0060965725630, 0.0030630356353, 0.0000000000000,-0.0030630356353, \
+        -0.0060965725630,-0.0090713961642,-0.0119588572614,-0.0147311480258,-0.0173615697819,-0.0198247901301, \
+        -0.0220970869121,-0.0241565766676,-0.0259834253845,-0.0275600395109,-0.0288712353910,-0.0299043854916, \
+        -0.0306495400126,-0.0310995227085,-0.0312500000000,-0.0310995227085,-0.0306495400126,-0.0299043854916, \
+        -0.0288712353910,-0.0275600395109,-0.0259834253845,-0.0241565766676,-0.0220970869121,-0.0198247901301, \
+        -0.0173615697819,-0.0147311480258,-0.0119588572614,-0.0090713961642,-0.0060965725630,-0.0030630356353, \
+        -0.0000000000000, 0.0030630356353, 0.0060965725630, 0.0090713961642, 0.0119588572614, 0.0147311480258, \
+         0.0173615697819, 0.0198247901301, 0.0220970869121, 0.0241565766676, 0.0259834253845, 0.0275600395109, \
+         0.0288712353910, 0.0299043854916, 0.0306495400126, 0.0310995227085 \
+        };
+// low-pass filter - 64 koeficientov
+//float const coeff[FIR_NUM_OF_COEFF] =                                                       \
+        {                                                                                   \
+        0.0128396498, 0.002229209524, 0.001987809548, 0.001418562024,0.0005116602406,       \
+       -0.0007191105396,-0.002233661246,-0.003967377357,-0.005827924237,-0.007696942892,    \
+       -0.009434565902,  -0.0108908657, -0.01190613955, -0.01232818887, -0.01201683283,     \
+       -0.01084406395,-0.008708032779,-0.005558374338, -0.00141107582, 0.003738404717,      \
+        0.009769263677,  0.01655653119,  0.02391541377,  0.03162577376,  0.03943601623,     \
+        0.04707739502,  0.05427397415,  0.06076014042,  0.06628206372,  0.07063338161,      \
+        0.07363332808,  0.07516146451,  0.07516146451,  0.07363332808,  0.07063338161,      \
+        0.06628206372,  0.06076014042,  0.05427397415,  0.04707739502,  0.03943601623,      \
+        0.03162577376,  0.02391541377,  0.01655653119, 0.009769263677, 0.003738404717,      \
+       -0.00141107582,-0.005558374338,-0.008708032779, -0.01084406395, -0.01201683283,      \
+       -0.01232818887, -0.01190613955,  -0.0108908657,-0.009434565902,-0.007696942892,      \
+       -0.005827924237,-0.003967377357,-0.002233661246,-0.0007191105396,0.0005116602406,    \
+        0.001418562024, 0.001987809548, 0.002229209524,   0.0128396498};
+// diracov impulz - 64 koeficientov
+//float const coeff[FIR_NUM_OF_COEFF] =                                                       \
+        {                                                                                   \
+        1.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0, 0.0,                                                            \
+        0.0, 0.0, 0.0, 0.0 };
+
+
+
+
+int main(void)
+{
+
+	// lokalne spremenljivke
+
+
+	// Inicializacija
+
+    // sistemske ure (PLL) in PIE (prekinitvena) tabela
+    InitSysCtrl();
+    DINT;
+    InitPieCtrl();
+    IER = 0x0000;
+    IFR = 0x0000;
+    InitPieVectTable();
+    EINT;   // Enable Global interrupt INTM
+    ERTM;   // Enable Global realtime interrupt DBGM
+
+    TIC_init();
+    TIC_init_1();
+/*
+    // inicializiram data logger
+
+    dlog.mode = Normal;
+    dlog.auto_time = 1;
+    dlog.holdoff_time = 1;
+
+    dlog.prescalar = 1;
+
+    dlog.slope = Positive;
+    dlog.trig = &ref_kot; // &ref_kot
+    dlog.trig_value = 0.01;
+
+    dlog.iptr1 = &ref_kot;
+    dlog.iptr2 = &cas_izvajanja_DCT_reg;
+    dlog.iptr3 = &DCT_test.Ref;
+    dlog.iptr4 = &DCT_test.Fdb;
+    dlog.iptr5 = &DCT_test.Out;
+    dlog.iptr6 = &ref_kot;
+    dlog.iptr7 = &ref_kot;
+    dlog.iptr8 = &ref_kot; // &ref_kot
+
+
+    // inicializiram DCT regulator omreznega toka
+    DCT_REG_INIT_MACRO(DCT_test);
+    DCT_test.BufferHistoryLength = 400; // 400
+    DCT_test.Kdct = 0.0; //0.02
+    DCT_test.k = 0.2;
+    DCT_test.ErrSumMax = 0.5;
+    DCT_test.ErrSumMin = -0.5;
+    DCT_test.OutMax = 0.5;
+    DCT_test.OutMin = -0.5;
+    DCT_REG_FIR_COEFF_CALC_MACRO(DCT_test);
+*/
+
+
+
+
+
+
+    // inicializacija firFP_razlika
+    for(i = 0;i < FIR_NUM_OF_COEFF;i++)
+    {
+        firFP_razlika[i] = 0.0;
+    }
+
+
+
+
+
+
+
+
+    // FIR filter offline
+
+    // Generate sample waveforms:
+    Rad = 0.0f;
+
+    for(i=0; i < SIGNAL_LENGTH; i++)
+    {
+        sigIn[i]=0;
+        sigOut[i]=0;
+    }
+
+    /* FIR Generic Filter Initialisation    */
+    firFP.order = FIR_NUM_OF_COEFF;
+    firFP.dbuffer_ptr = dbuffer;
+    firFP.coeff_ptr = (float *)coeff;
+    firFP.init(&firFP);
+
+
+    for(i=0; i < SIGNAL_LENGTH; i++)
+    {
+
+        /* Test signal 1 from Texas Instruments
+         * Calculating a digital frequency
+         * Let sampling frequency = 200MHz
+         * primary signal @ 10KHz and a secondary signal @ 40KHz
+         * Therefore k1 = FREQ1/SAMPLING_FREQ = 10K/200M = 5e-5
+         *           k2 = FREQ2/SAMPLING_FREQ = 40K/200M = 20e-5
+         * composite signal = 1/2(sin(2*pi*i*k1) + sin(2*pi*i*k2))
+         *                  = 1/2(sin(0.001256637061436 * i) + sin(0.005026548245744*i))
+         */
+
+        //xn = 0.5*sin(Rad) + 0.5*sin(Rad2); //Q15
+
+        if(i > 63)
+        {
+            temp1 = 1.0;
+        }
+        xn = xn + 1.0;
+/*
+        // Test signal 2 from Denis Sušin
+        angle_from_0_to_1 = (float)i / (SIGNAL_LENGTH-1);
+        xn = 1.0*sin(2 * PI * NUMBER_OF_PERIODS_IN_WINDOW * 1.0 * angle_from_0_to_1) + \
+             0.2*sin(2 * PI * NUMBER_OF_PERIODS_IN_WINDOW * 5.0 * angle_from_0_to_1); // osnovni harmonik + višji harmonik
+*/
+        sigIn[i] = xn;
+        firFP.input = xn;
+        firFP.calc(&firFP);
+        yn = firFP.output;
+        sigOut[i] = yn;
+        Rad = Rad + RadStep;
+        Rad2 = Rad2 + RadStep2;
+    }
+
+
+
+
+
+	// Program
+	while(1)
+	{
+        // ustavimo štoparico 0
+        TIC_stop();
+
+	    // generiramo referenèni kot, ki se naj bi resetiral vsako sekundo - s pomoèjo timerja 0
+		ref_kot = ref_kot + 1.0 * (float)TIC_time / CPU_FREQ;
+		// generiramo še kot, ki se spreminja s frekvenco 50 Hz - za potrebe DCT reg.
+        kot_50Hz = ref_kot + 50.0 * (float)TIC_time / CPU_FREQ;
+
+		// zaženemo štoparico 0 za potrebe generiranja kota ref_kot
+		TIC_start();
+
+		// omejimo ref_kot med 0 in 1
+		if(ref_kot > 1.0)
+		{
+			ref_kot = ref_kot - 1.0;
+			num_of_s_passed = num_of_s_passed + 1;
+		}
+		else if(ref_kot < 0.0)
+		{
+			ref_kot = ref_kot + 1.0;
+		}
+
+		// izraèunamo koliko minut že teèe program
+        if(num_of_s_passed > 59)
+        {
+            num_of_s_passed = 0;
+            num_of_min_passed = num_of_min_passed + 1;
+        }
+
+
+
+/*
+
+		// nastavimo parametre DCT regulatorja
+		DCT_test.Ref = 0.99 * cos(2* PI * kot_50Hz);
+		DCT_test.Fdb = cos(2* PI * kot_50Hz);
+		DCT_test.SamplingSignal = kot_50Hz;
+
+		// zaženemo štoparico 1 za mejenje èasa izvajanja DCT filtra
+		TIC_start_1();
+
+		// izvedemo DCT regulator
+		DCT_REG_CALC(&DCT_test);
+
+        // ustavimo štoparico 1 in izraèunamo èas izvajanja DCT reg. za vsak cikel
+        TIC_stop_1();
+        cas_izvajanja_DCT_reg = (float)TIC_time_1 / CPU_FREQ;
+
+        // osvežim data logger
+        DLOG_GEN_update();
+*/
+	}
+}

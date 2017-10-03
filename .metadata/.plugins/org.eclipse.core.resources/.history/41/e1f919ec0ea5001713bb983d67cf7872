@@ -1,0 +1,4 @@
+/cmd/
+/lib/
+/makefile
+/objects.mk

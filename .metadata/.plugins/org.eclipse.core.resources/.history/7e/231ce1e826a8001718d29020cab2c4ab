@@ -1,0 +1,20 @@
+################################################################################
+# Automatically-generated file. Do not edit!
+################################################################################
+
+# Each subdirectory must supply rules for building sources it contributes
+source/FIR_f32.obj: ../source/FIR_f32.asm $(GEN_OPTS) $(GEN_HDRS)
+	@echo 'Building file: $<'
+	@echo 'Invoking: C2000 Compiler'
+	"C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.4.LTS/bin/cl2000" -v28 -ml -mt --float_support=fpu32 --cla_support=cla1 --vcu_support=vcu2 --tmu_support=tmu0 --opt_for_speed=2 --fp_mode=relaxed --include_path="C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.4.LTS/include" --include_path="C:/Users/DenisS/Desktop/FIR_filter_offline_pragma_v2/FIR_filter_offline/include" --include_path="C:/Users/DenisS/Desktop/FIR_filter_offline_pragma_v2/FIR_filter_offline/include/device" --advice:performance=all -g --define=CPU1 --display_error_number --diag_wrap=off --verbose_diagnostics --issue_remarks --gen_func_subsections=on -k --c_src_interlist --preproc_with_compile --preproc_dependency="source/FIR_f32.d" --obj_directory="source" $(GEN_OPTS__FLAG) "$<"
+	@echo 'Finished building: $<'
+	@echo ' '
+
+source/main.obj: ../source/main.c $(GEN_OPTS) $(GEN_HDRS)
+	@echo 'Building file: $<'
+	@echo 'Invoking: C2000 Compiler'
+	"C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.4.LTS/bin/cl2000" -v28 -ml -mt --float_support=fpu32 --cla_support=cla1 --vcu_support=vcu2 --tmu_support=tmu0 --opt_for_speed=2 --fp_mode=relaxed --include_path="C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.4.LTS/include" --include_path="C:/Users/DenisS/Desktop/FIR_filter_offline_pragma_v2/FIR_filter_offline/include" --include_path="C:/Users/DenisS/Desktop/FIR_filter_offline_pragma_v2/FIR_filter_offline/include/device" --advice:performance=all -g --define=CPU1 --display_error_number --diag_wrap=off --verbose_diagnostics --issue_remarks --gen_func_subsections=on -k --c_src_interlist --preproc_with_compile --preproc_dependency="source/main.d" --obj_directory="source" $(GEN_OPTS__FLAG) "$<"
+	@echo 'Finished building: $<'
+	@echo ' '
+
+

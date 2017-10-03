@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;Test_DCT&apos; to &apos;FIR_filter_offline&apos;" description="Rename resource &apos;Test_DCT&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="/Test_DCT" name="FIR_filter_offline" stamp="1506686916219" updateReferences="true"/>
+</session>
