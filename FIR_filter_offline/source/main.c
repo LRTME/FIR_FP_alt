@@ -160,7 +160,7 @@ int main(void)
     }
 
     /* FIR Generic Filter Initialisation    */
-    firFP.order = FIR_NUM_OF_COEFF;
+    firFP.order = FIR_NUM_OF_COEFF - 1;
     firFP.dbuffer_ptr = dbuffer;
     firFP.coeff_ptr = (float *)coeff;
     firFP.init(&firFP);
