@@ -136,8 +136,6 @@ int main(void)
     InitSysCtrl();
     DINT;
     InitPieCtrl();
-    IER = 0x0000;
-    IFR = 0x0000;
     InitPieVectTable();
     EINT;   // Enable Global interrupt INTM
     ERTM;   // Enable Global realtime interrupt DBGM
@@ -186,8 +184,6 @@ int main(void)
         firFP.calc(&firFP);
         yn = firFP.output;
         sigOut[i] = yn;
-        Rad = Rad + RadStep;
-        Rad2 = Rad2 + RadStep2;
     }
 
 
