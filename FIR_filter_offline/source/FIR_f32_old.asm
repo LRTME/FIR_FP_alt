@@ -1,12 +1,3 @@
-; Update from DenisS 4.10.2017
-; WHICH REGISTERS ARE USED FOR WHAT?
-; ASM   |   C
-; XAR0  | at beginning input but then rewritten with order
-; XAR1  | help at circular buffer (for "*+XAR6[AR1%++]" command)
-; XAR4  | *FIR_FP_alt_handle
-; XAR6  | *dbuffer_ptr
-; XAR7  | *coeff_ptr
-;
 ; TI File $Revision: /main/1 $
 ; Checkin $Date: January 6, 2011   18:11:18 $
 ; =============================================================================
@@ -30,9 +21,9 @@
 ;
 ; FUNCTIONS:
 ;
-; 	void FIR_FP_alt_calc(FIR_FP_alt_handle)
+; 	void FIR_FP_calc(FIR_FP_handle) 
 ;   
-;	where FIR_FP_alt_handle is a pointer to a structure defined as:
+;	where FIR_FP_handle is a pointer to a structure defined as:
 ;
 ;  	typedef struct { 
 ;   float *coeff_ptr;       /*  0 Pointer to Filter co-efficient array */
@@ -43,7 +34,7 @@
 ;   float output;           /*  8 Output data                          */ 
 ;   void  (*init)(void *)   /* 10 Pointer to init fun                  */  
 ;   void  (*calc)(void *);  /* 12 Pointer to the calculation function  */
-;   }FIR_FP_alt;
+;   }FIR_FP; 
 ;
 ; ALGORITHM:
 ;
@@ -85,14 +76,14 @@
 ; ###########################################################################
 
 ; Module definition for external referance
-                .def    _FIR_FP_alt_init
-                .def    _FIR_FP_alt_calc
+                .def    _FIR_FP_init 
+                .def    _FIR_FP_calc
 
 
 ;===============================================================================
-; Function: FIR_FP_alt_init() - Initialize the FIR_FP_alt handle and data buffer
+; Function: FIR_FP_init() - Initialize the FIR_FP handle and data buffer
 ;
-; Input - FIR_FP_alt structure pointer
+; Input - FIR_FP structure pointer
 ; Returns - void
 ;
 ; Implementation specifics:
@@ -100,7 +91,7 @@
 ;===============================================================================
 
 
-_FIR_FP_alt_init:
+_FIR_FP_init:
 
             ZAPA
             MOVL    *+XAR4[6], ACC    ; XAR4->ouput, input=0
@@ -120,20 +111,20 @@ _FIR_FP_alt_init:
 
 
 ;===============================================================================
-; Function: FIR_FP_alt_calc() - Compute the FIR out-put for the next sample.
+; Function: FIR_FP_calc() - Compute the FIR out-put for the next sample.
 ;
-; Input - FIR_FP_alt structure pointer
+; Input - FIR_FP structure pointer
 ; Returns - void
 ;
-; Description: Input from FIR_FP_alt is stored in the input buffer and output is
-;       returned through the FIR_FP_alt structure.
+; Description: Input from FIR_FP is stored in the input buffer and output is
+;       returned through the FIR_FP structure.
 ;
 ; Implementation specifics:
 ;   Regs used: XAR - 0,1,4,6,7 
 ;              RH  - 2,3,6,7
 ;===============================================================================
 
-_FIR_FP_alt_calc:
+_FIR_FP_calc:
 
         ; Context Save
         MOV32   R0H, R6H            ; Store R 6,7 on R 0,1
@@ -141,68 +132,37 @@ _FIR_FP_alt_calc:
         PUSH    XAR1
 
         ; XAR7=coeff_ptr. Adjusting base ptr (+2) to index beyond 7
-        MOVL    XAR7, *XAR4++           ; XAR7 = coeff_ptr; offset of XAR4 is 2
+        MOVL    XAR7, *XAR4++           ; XAR7 = coeff_ptr
+
         MOVL    XAR6, *+XAR4[0]         ; XAR6 = &dbuffer_ptr[cbindex]
 
-        ; Set length of circular buffer ie. (2*num_elements) in XAR1 (high word)
-        MOV	    AH,   *+XAR4[3]			; ACC  = [order : 0]
-        LSL		AH,   #1				; ACC =  [2*order : 0]
-	    MOV     AL,   *+XAR4[2]         ; ACC  = [order*2 : cbindex]
-    	MOVL    XAR1, ACC               ; XAR1 = [order*2 : cbindex]
-
-
-        ;; Set length of circular buffer ie. (2*num_elements) -
-        ;ZAPA
-        ;ADD     ACC, *+XAR4[3] << 1     ; ACC = 0 + order*2		; if(order == 8) ACC=16
-        ;MOVZ    AR1, AL											; XAR1 = 16
-        ;;MOV		AR1, #62
-        ;SUBB	XAR1,#2											; XAR1 = 14
-
-        ; Set length of circular buffer ie. (2*num_elements) in XAR1 (high word)
-        ;ZAPA
-		;MOVL	XAR1, @ACC				; ACC = 0
-		;ADD     ACC, *+XAR4[3] << 1    	; ACC = 0 + order*2		; if(order == 8) ACC=16
-		;SUBB	ACC,#2					; ACC = 14
-    	;MOV     AH, AL  				; AH = AL
-		;MOVL	XAR1, @ACC				; AR1H = order*2
-
-
-
-
-
-		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	    .lp_amode
-	    SETC      AMODE                              ; C2xLP addressing mode to allow
-	                                                 ; *+XAR6[AR1%++]
+        ; Set length of circular buffer ie. (2*num_elements) in XAR1
+        ZAPA
+        ADD     ACC, *+XAR4[3] << 1     ; ACC = 0 + order*2
+        MOVZ    AR1, AL
+        ;MOV		AR1, #62
+        SUBB	XAR1,#2
 
         ; fir->dbuffer_ptr[cb_idx] = fir->input;
         MOVL    XAR0, *+XAR4[4]     ; XAR0 = input
-        MOVL    *+XAR6[AR1%++], XAR0      ; Store input into dbuf
+        MOVL    *XAR6%++, XAR0      ; Store input into dbuf
         MOVL    *+XAR4[0], XAR6     ; Update dbuffer_ptr (used as cbindex)
 
-        MOVZ    AR0, *+XAR4[3]      ; AR0=order 				; if(order == 8) XAR0 = 8
+        MOVZ    AR0, *+XAR4[3]      ; AR0=order
         ;MOV		AR0,#31
-        SUBB	XAR0,#1											; XAR0 = 7
+        SUBB	XAR0,#1
 
-        ; FIR: perform convolution
+        ; FIR: perform convloution 
         ZERO    R2H
         ZERO    R3H
         ZERO    R6H
         ZERO    R7H
 
-        RPT     AR0					; do MAC32 (XAR0 + 1) times	;if(XAR0 == 7) do MAC32 8 times
-        || MACF32    R7H, R3H, *+XAR6[AR1%++], *XAR7++
+        RPT     AR0
+        || MACF32    R7H, R3H, *XAR6%++, *XAR7++
 
-
-    	.c28_amode
-    	CLRC      AMODE                              ; Back to C28x addressing mode
-		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-
-
-        ADDF32  R6H, R6H, R2H       ; Epilogue additions		; add last even and last odd product
-        ADDF32  R7H, R7H, R3H									; add odd and even partial sum
+        ADDF32  R6H, R6H, R2H       ; Epilogue additions
+        ADDF32  R7H, R7H, R3H
 
         ; NOP. Restore context in the delay slots.
         POP     XAR1 
