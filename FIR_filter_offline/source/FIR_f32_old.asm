@@ -1,5 +1,3 @@
-; Update from DenisS 4.10.2017
-;
 ; TI File $Revision: /main/1 $
 ; Checkin $Date: January 6, 2011   18:11:18 $
 ; =============================================================================
@@ -23,9 +21,9 @@
 ;
 ; FUNCTIONS:
 ;
-; 	void FIR_FP_alt_calc(FIR_FP_alt_handle)
+; 	void FIR_FP_calc(FIR_FP_handle) 
 ;   
-;	where FIR_FP_alt_handle is a pointer to a structure defined as:
+;	where FIR_FP_handle is a pointer to a structure defined as:
 ;
 ;  	typedef struct { 
 ;   float *coeff_ptr;       /*  0 Pointer to Filter co-efficient array */
@@ -36,7 +34,7 @@
 ;   float output;           /*  8 Output data                          */ 
 ;   void  (*init)(void *)   /* 10 Pointer to init fun                  */  
 ;   void  (*calc)(void *);  /* 12 Pointer to the calculation function  */
-;   }FIR_FP_alt;
+;   }FIR_FP; 
 ;
 ; ALGORITHM:
 ;
@@ -78,14 +76,14 @@
 ; ###########################################################################
 
 ; Module definition for external referance
-                .def    _FIR_FP_alt_init
-                .def    _FIR_FP_alt_calc
+                .def    _FIR_FP_init 
+                .def    _FIR_FP_calc
 
 
 ;===============================================================================
-; Function: FIR_FP_alt_init() - Initialize the FIR_FP_alt handle and data buffer
+; Function: FIR_FP_init() - Initialize the FIR_FP handle and data buffer
 ;
-; Input - FIR_FP_alt structure pointer
+; Input - FIR_FP structure pointer
 ; Returns - void
 ;
 ; Implementation specifics:
@@ -93,7 +91,7 @@
 ;===============================================================================
 
 
-_FIR_FP_alt_init:
+_FIR_FP_init:
 
             ZAPA
             MOVL    *+XAR4[6], ACC    ; XAR4->ouput, input=0
@@ -113,20 +111,20 @@ _FIR_FP_alt_init:
 
 
 ;===============================================================================
-; Function: FIR_FP_alt_calc() - Compute the FIR out-put for the next sample.
+; Function: FIR_FP_calc() - Compute the FIR out-put for the next sample.
 ;
-; Input - FIR_FP_alt structure pointer
+; Input - FIR_FP structure pointer
 ; Returns - void
 ;
-; Description: Input from FIR_FP_alt is stored in the input buffer and output is
-;       returned through the FIR_FP_alt structure.
+; Description: Input from FIR_FP is stored in the input buffer and output is
+;       returned through the FIR_FP structure.
 ;
 ; Implementation specifics:
 ;   Regs used: XAR - 0,1,4,6,7 
 ;              RH  - 2,3,6,7
 ;===============================================================================
 
-_FIR_FP_alt_calc:
+_FIR_FP_calc:
 
         ; Context Save
         MOV32   R0H, R6H            ; Store R 6,7 on R 0,1
