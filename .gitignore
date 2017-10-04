@@ -5,3 +5,5 @@
 /FIR_filter_offline/.settings
 /RemoteSystemsTempFiles
 /.metadata
+/FIR_filter_offline/source/fir16_alt_copy.asm
+/FIR_filter_offline/source/fir32_alt_copy.asm
